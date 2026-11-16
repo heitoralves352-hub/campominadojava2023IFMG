@@ -1,11 +1,9 @@
 package campominado;
 
 import java.awt.BorderLayout;
-import java.awt.Color;
-import java.awt.Dimension;
 import java.awt.Font;
+import java.awt.GridBagLayout;
 import java.awt.GridLayout;
-import java.awt.Insets;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import javax.swing.BorderFactory;
@@ -16,30 +14,44 @@ import javax.swing.JLabel;
 import javax.swing.JMenu;
 import javax.swing.JMenuBar;
 import javax.swing.JMenuItem;
-import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JRadioButtonMenuItem;
+import javax.swing.SwingConstants;
 import javax.swing.SwingUtilities;
+import javax.swing.Timer;
 
 public class JanelaJogo extends JFrame {
 
-    private static final int TAMANHO_CELULA = 32;
+    private static final int TAMANHO_CELULA = 34;
 
     private Dificuldade dificuldade = Dificuldade.INICIANTE;
     private Tabuleiro tabuleiro;
-    private JButton[][] botoes;
+    private BotaoCelula[][] botoes;
 
     private final JPanel painelCampo = new JPanel();
-    private final JLabel lblMinas = new JLabel();
-    private final JButton btnReiniciar = new JButton("Novo jogo");
+    private final JLabel lblMinas = criarNumeroGrande();
+    private final JLabel lblTempo = criarNumeroGrande();
+    private final JLabel lblStatus = new JLabel(" ", SwingConstants.CENTER);
+    private final JLabel lblRecorde = new JLabel(" ", SwingConstants.CENTER);
+
+    // Cronômetro: soma 1 segundo a cada 1000 ms
+    private int segundos = 0;
+    private final Timer cronometro = new Timer(1000, e -> {
+        segundos++;
+        lblTempo.setText(formatar(segundos));
+    });
 
     public JanelaJogo() {
         setTitle("Campo Minado");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setResizable(false);
+        getContentPane().setBackground(Tema.FUNDO);
 
         criarMenu();
         criarBarraSuperior();
+        criarBarraInferior();
+
+        painelCampo.setBackground(Tema.FUNDO);
         add(painelCampo, BorderLayout.CENTER);
 
         novoJogo(dificuldade);
@@ -56,7 +68,6 @@ public class JanelaJogo extends JFrame {
         menuJogo.add(itemNovo);
         menuJogo.addSeparator();
 
-        // Um item de menu para cada dificuldade (só um pode ficar marcado)
         ButtonGroup grupo = new ButtonGroup();
         for (Dificuldade d : Dificuldade.values()) {
             JRadioButtonMenuItem item = new JRadioButtonMenuItem(d.getNome());
@@ -77,15 +88,58 @@ public class JanelaJogo extends JFrame {
 
     private void criarBarraSuperior() {
         JPanel barra = new JPanel(new BorderLayout());
-        barra.setBorder(BorderFactory.createEmptyBorder(8, 12, 8, 12));
+        barra.setBackground(Tema.FUNDO);
+        barra.setBorder(BorderFactory.createEmptyBorder(14, 16, 12, 16));
 
-        lblMinas.setFont(new Font("SansSerif", Font.BOLD, 16));
+        JButton btnReiniciar = new JButton("Reiniciar");
         btnReiniciar.setFocusPainted(false);
         btnReiniciar.addActionListener(e -> novoJogo(dificuldade));
 
-        barra.add(lblMinas, BorderLayout.WEST);
-        barra.add(btnReiniciar, BorderLayout.EAST);
+        barra.add(criarIndicador("MINAS", lblMinas), BorderLayout.WEST);
+        // GridBagLayout deixa o botão no centro, com o tamanho natural dele
+        JPanel centro = new JPanel(new GridBagLayout());
+        centro.setBackground(Tema.FUNDO);
+        centro.add(btnReiniciar);
+        barra.add(centro, BorderLayout.CENTER);
+        barra.add(criarIndicador("TEMPO", lblTempo), BorderLayout.EAST);
         add(barra, BorderLayout.NORTH);
+    }
+
+    private void criarBarraInferior() {
+        JPanel barra = new JPanel(new GridLayout(2, 1, 0, 2));
+        barra.setBackground(Tema.FUNDO);
+        barra.setBorder(BorderFactory.createEmptyBorder(4, 16, 14, 16));
+
+        lblStatus.setForeground(Tema.TEXTO);
+        lblStatus.setFont(lblStatus.getFont().deriveFont(Font.BOLD, 14f));
+        lblRecorde.setForeground(Tema.TEXTO_SUAVE);
+        lblRecorde.setFont(lblRecorde.getFont().deriveFont(12f));
+
+        barra.add(lblStatus);
+        barra.add(lblRecorde);
+        add(barra, BorderLayout.SOUTH);
+    }
+
+    // Um bloquinho com um título pequeno em cima e um número grande embaixo
+    private JPanel criarIndicador(String titulo, JLabel valor) {
+        JPanel painel = new JPanel(new GridLayout(2, 1));
+        painel.setBackground(Tema.FUNDO);
+
+        JLabel lblTitulo = new JLabel(titulo, SwingConstants.CENTER);
+        lblTitulo.setForeground(Tema.TEXTO_SUAVE);
+        lblTitulo.setFont(lblTitulo.getFont().deriveFont(Font.BOLD, 11f));
+
+        painel.add(lblTitulo);
+        painel.add(valor);
+        return painel;
+    }
+
+    private static JLabel criarNumeroGrande() {
+        JLabel label = new JLabel("000", SwingConstants.CENTER);
+        label.setForeground(Tema.TEXTO);
+        label.setFont(new Font(Font.MONOSPACED, Font.BOLD, 22));
+        label.setBorder(BorderFactory.createEmptyBorder(0, 6, 0, 6));
+        return label;
     }
 
     // ===================== CONTROLE DO JOGO =====================
@@ -94,14 +148,21 @@ public class JanelaJogo extends JFrame {
         dificuldade = novaDificuldade;
         tabuleiro = new Tabuleiro(dificuldade);
 
+        cronometro.stop();
+        segundos = 0;
+        lblTempo.setText(formatar(0));
+        lblStatus.setForeground(Tema.TEXTO);
+        lblStatus.setText("Clique em qualquer casa para começar");
+        atualizarRecorde();
+
         int linhas = tabuleiro.getLinhas();
         int colunas = tabuleiro.getColunas();
 
         painelCampo.removeAll();
-        painelCampo.setLayout(new GridLayout(linhas, colunas, 2, 2));
-        painelCampo.setBorder(BorderFactory.createEmptyBorder(0, 12, 12, 12));
+        painelCampo.setLayout(new GridLayout(linhas, colunas, 3, 3));
+        painelCampo.setBorder(BorderFactory.createEmptyBorder(0, 16, 0, 16));
 
-        botoes = new JButton[linhas][colunas];
+        botoes = new BotaoCelula[linhas][colunas];
         for (int i = 0; i < linhas; i++) {
             for (int j = 0; j < colunas; j++) {
                 botoes[i][j] = criarBotao(i, j);
@@ -110,22 +171,24 @@ public class JanelaJogo extends JFrame {
         }
 
         atualizarTela();
-        pack();                          // ajusta o tamanho da janela ao campo
-        setLocationRelativeTo(null);     // centraliza na tela
+        pack();
+        setLocationRelativeTo(null);
     }
 
-    private JButton criarBotao(int linha, int coluna) {
-        JButton botao = new JButton();
-        botao.setPreferredSize(new Dimension(TAMANHO_CELULA, TAMANHO_CELULA));
-        botao.setMargin(new Insets(0, 0, 0, 0));
-        botao.setFocusPainted(false);
-        botao.setFont(new Font("SansSerif", Font.BOLD, 15));
+    private BotaoCelula criarBotao(int linha, int coluna) {
+        BotaoCelula botao = new BotaoCelula(TAMANHO_CELULA);
 
         botao.addMouseListener(new MouseAdapter() {
             @Override
             public void mousePressed(MouseEvent e) {
+                if (tabuleiro.isJogoTerminado()) return;
+
                 if (SwingUtilities.isLeftMouseButton(e)) {
                     tabuleiro.abrir(linha, coluna);
+                    if (!cronometro.isRunning()) {
+                        cronometro.start();          // começa a contar no 1º clique
+                        lblStatus.setText(" ");
+                    }
                 } else if (SwingUtilities.isRightMouseButton(e)) {
                     tabuleiro.alternarBandeira(linha, coluna);
                 }
@@ -137,43 +200,44 @@ public class JanelaJogo extends JFrame {
     }
 
     private void verificarFimDeJogo() {
+        if (!tabuleiro.isJogoTerminado()) return;
+
+        cronometro.stop();
+
         if (tabuleiro.isPerdeu()) {
-            JOptionPane.showMessageDialog(this, "💥 Você pisou numa mina!", "Fim de jogo",
-                    JOptionPane.INFORMATION_MESSAGE);
-        } else if (tabuleiro.isGanhou()) {
-            JOptionPane.showMessageDialog(this, "🏆 Parabéns, você venceu!", "Vitória",
-                    JOptionPane.INFORMATION_MESSAGE);
+            lblStatus.setForeground(Tema.EXPLOSAO);
+            lblStatus.setText("Boom! Você pisou numa mina.");
+        } else {
+            boolean recorde = Recordes.salvarSeForMelhor(dificuldade, segundos);
+            lblStatus.setForeground(Tema.DESTAQUE);
+            lblStatus.setText(recorde
+                    ? "Novo recorde! Você venceu em " + segundos + "s"
+                    : "Você venceu em " + segundos + "s!");
+            atualizarRecorde();
         }
     }
 
-    // ===================== DESENHO DO CAMPO =====================
+    // ===================== DESENHO =====================
 
     private void atualizarTela() {
-        lblMinas.setText("Minas: " + tabuleiro.getMinasRestantes());
+        lblMinas.setText(formatar(tabuleiro.getMinasRestantes()));
 
         for (int i = 0; i < tabuleiro.getLinhas(); i++) {
             for (int j = 0; j < tabuleiro.getColunas(); j++) {
-                desenharCelula(botoes[i][j], tabuleiro.getCelula(i, j));
+                botoes[i][j].atualizar(tabuleiro.getCelula(i, j),
+                        tabuleiro.isPerdeu(), tabuleiro.isJogoTerminado());
             }
         }
     }
 
-    private void desenharCelula(JButton botao, Celula celula) {
-        boolean mostrarMina = celula.temMina() && tabuleiro.isPerdeu();
+    private void atualizarRecorde() {
+        int recorde = Recordes.obter(dificuldade);
+        lblRecorde.setText(dificuldade.getNome() + "  •  Recorde: "
+                + (recorde == -1 ? "--" : recorde + "s"));
+    }
 
-        if (mostrarMina) {
-            botao.setText("*");
-            botao.setBackground(celula.isAberta() ? Color.RED : Color.LIGHT_GRAY);
-        } else if (celula.temBandeira()) {
-            botao.setText("F");
-            botao.setBackground(null);
-        } else if (celula.isAberta()) {
-            int numero = celula.getMinasVizinhas();
-            botao.setText(numero == 0 ? "" : String.valueOf(numero));
-            botao.setBackground(Color.WHITE);
-        } else {
-            botao.setText("");
-            botao.setBackground(null);
-        }
+    // Mostra números sempre com 3 dígitos: 7 -> "007"
+    private static String formatar(int valor) {
+        return String.format("%03d", Math.max(valor, 0));
     }
 }
