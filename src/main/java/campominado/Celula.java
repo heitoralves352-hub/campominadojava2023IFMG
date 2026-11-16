@@ -1,4 +1,4 @@
-package src.main.java.campominado;
+package campominado;
 
 
 public class Celula {

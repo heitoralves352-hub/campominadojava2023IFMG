@@ -1,4 +1,4 @@
-package src.main.java.campominado;
+package campominado;
 
 // Grupo fixo de constantes que podem ser usadas em todo o projeto
 

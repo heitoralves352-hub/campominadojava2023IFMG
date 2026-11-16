@@ -1,4 +1,4 @@
-package src.main.java.campominado;
+package campominado;
 
 
 import java.util.Random;
