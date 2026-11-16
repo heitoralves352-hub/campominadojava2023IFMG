@@ -71,4 +71,4 @@ Depois ele foi reescrito com interface gráfica, código organizado em classes e
 
 ## 👤 Autor
 
-Desenvolvido por **[Heitor Barros Alves]**.
+Desenvolvido por **Heitor Barros Alves**.
